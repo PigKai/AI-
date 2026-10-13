@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学生成绩统计</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f7fa; color: #253247; font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    main { max-width: 1080px; margin: 40px auto; padding: 0 24px; }
+    h1 { margin: 0; font-size: 28px; }
+    .subtitle { color: #657287; margin: 6px 0 24px; }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-bottom: 24px; }
+    .card, .panel { background: white; border: 1px solid #e1e6ed; border-radius: 12px; }
+    .card { padding: 22px; }
+    .stat-label { color: #657287; font-size: 14px; }
+    .stat-value { font-size: 32px; font-weight: 700; margin: 6px 0; color: #2456a6; }
+    .stat-detail { font-size: 14px; color: #657287; overflow-wrap: anywhere; }
+    .panel { padding: 24px; margin-bottom: 24px; }
+    h2 { margin: 0 0 18px; font-size: 18px; }
+    form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 16px; align-items: end; }
+    label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; }
+    input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid #c8d1dd; border-radius: 6px; font: inherit; background: white; }
+    input:focus { outline: 2px solid #2456a6; outline-offset: 2px; }
+    input[aria-invalid="true"] { border-color: #b42318; }
+    button { padding: 11px 18px; border: 0; border-radius: 6px; font: inherit; cursor: pointer; }
+    button:focus-visible { outline: 2px solid #2456a6; outline-offset: 3px; }
+    .primary { background: #2456a6; color: white; }
+    .primary:hover { background: #1c4485; }
+    .message { min-height: 24px; margin: 12px 0 0; font-size: 14px; color: #b42318; }
+    .message.success { color: #187144; }
+    .list-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .list-heading h2 { margin: 0; }
+    .count { color: #657287; font-size: 14px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { background: #f7f9fc; color: #657287; font-size: 14px; font-weight: 600; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid #e8edf3; }
+    .name-cell { overflow-wrap: anywhere; max-width: 360px; }
+    .delete { color: #b42318; background: #fff0ee; padding: 6px 12px; white-space: nowrap; }
+    .delete:hover { background: #ffe1dd; }
+    .empty { padding: 36px 14px; text-align: center; color: #657287; }
+    footer { color: #657287; font-size: 13px; }
+    @media (max-width: 640px) {
+      main { margin: 24px auto; padding: 0 14px; }
+      .stats { grid-template-columns: 1fr; gap: 12px; }
+      .panel, .card { padding: 18px; }
+      form { grid-template-columns: 1fr; }
+      th, td { padding: 10px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>学生成绩统计</h1>
+      <p class="subtitle">录入考试成绩，实时查看班级成绩概况。</p>
+    </header>
+    <section class="stats" aria-label="成绩统计" aria-live="polite">
+      <article class="card">
+        <div class="stat-label">最高分</div>
+        <div class="stat-value" id="highest-score">—</div>
+        <div class="stat-detail" id="highest-names">暂无学生</div>
+      </article>
+      <article class="card">
+        <div class="stat-label">最低分</div>
+        <div class="stat-value" id="lowest-score">—</div>
+        <div class="stat-detail" id="lowest-names">暂无学生</div>
+      </article>
+      <article class="card">
+        <div class="stat-label">平均分</div>
+        <div class="stat-value" id="average-score">—</div>
+        <div class="stat-detail">平均分保留两位小数</div>
+      </article>
+    </section>
+    <section class="panel" aria-labelledby="entry-title">
+      <h2 id="entry-title">录入学生</h2>
+      <form id="student-form" novalidate>
+        <div>
+          <label for="student-name">学生姓名</label>
+          <input id="student-name" type="text" placeholder="请输入姓名" required aria-describedby="message">
+        </div>
+        <div>
+          <label for="student-score">考试成绩（0～100）</label>
+          <input id="student-score" type="text" inputmode="decimal" placeholder="例如：89.5" required aria-describedby="message">
+        </div>
+        <button class="primary" type="submit">添加学生</button>
+      </form>
+      <p class="message" id="message" role="status" aria-live="polite"></p>
+    </section>
+    <section class="panel" aria-labelledby="list-title">
+      <div class="list-heading">
+        <h2 id="list-title">学生成绩列表</h2>
+        <span class="count" id="student-count">共 0 名学生</span>
+      </div>
+      <div class="table-wrap">
+        <table aria-label="已录入的学生及成绩">
+          <thead><tr><th scope="col">序号</th><th scope="col">姓名</th><th scope="col">成绩</th><th scope="col">操作</th></tr></thead>
+          <tbody id="student-list"></tbody>
+        </table>
+      </div>
+    </section>
+    <footer>数据仅在当前页面中保留，刷新或关闭页面后会清空。</footer>
+  </main>
+  <script>
+    const students = [];
+    let nextId = 1;
+    const form = document.getElementById('student-form');
+    const nameInput = document.getElementById('student-name');
+    const scoreInput = document.getElementById('student-score');
+
+    // 先检查空值，再转换成绩；仅接受十进制数字，排除非数字和无限值。
+    function validateStudent(rawName, rawScore) {
+      const name = rawName.trim();
+      const scoreText = rawScore.trim();
+      if (!name) return { error: '请输入学生姓名，姓名不能只有空格。', field: 'name' };
+      if (!scoreText) return { error: '请输入考试成绩。', field: 'score' };
+      if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(scoreText) || !Number.isFinite(Number(scoreText))) {
+        return { error: '成绩必须是有效数字，例如 89 或 89.5。', field: 'score' };
+      }
+      const score = Number(scoreText);
+      if (score < 0 || score > 100) return { error: '成绩必须在 0～100 分之间。', field: 'score' };
+      return { name, score };
+    }
+
+    // 空数据返回 null，避免除零；保留所有并列最高分和最低分的记录。
+    function calculateStatistics(records) {
+      if (!records.length) return null;
+      let highest = records[0].score;
+      let lowest = records[0].score;
+      let total = 0;
+      for (const student of records) {
+        highest = Math.max(highest, student.score);
+        lowest = Math.min(lowest, student.score);
+        total += student.score;
+      }
+      return {
+        highest,
+        lowest,
+        average: total / records.length,
+        highestNames: records.filter(student => student.score === highest).map(student => student.name),
+        lowestNames: records.filter(student => student.score === lowest).map(student => student.name)
+      };
+    }
+
+    function showMessage(text, success = false) {
+      const message = document.getElementById('message');
+      message.textContent = text;
+      message.classList.toggle('success', success);
+    }
+
+    function renderStatistics(stats) {
+      document.getElementById('highest-score').textContent = stats ? String(stats.highest) : '—';
+      document.getElementById('lowest-score').textContent = stats ? String(stats.lowest) : '—';
+      document.getElementById('average-score').textContent = stats ? stats.average.toFixed(2) : '—';
+      document.getElementById('highest-names').textContent = stats ? stats.highestNames.join('、') : '暂无学生';
+      document.getElementById('lowest-names').textContent = stats ? stats.lowestNames.join('、') : '暂无学生';
+      document.getElementById('student-count').textContent = `共 ${students.length} 名学生`;
+    }
+
+    function renderStudentList() {
+      const body = document.getElementById('student-list');
+      body.replaceChildren();
+      if (!students.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 4;
+        cell.className = 'empty';
+        cell.textContent = '暂无学生，请先添加。';
+        row.append(cell);
+        body.append(row);
+        return;
+      }
+      students.forEach((student, index) => {
+        const row = document.createElement('tr');
+        // 用户输入只通过 textContent 写入页面，不作为 HTML 解析。
+        [index + 1, student.name, student.score].forEach((value, column) => {
+          const cell = document.createElement('td');
+          cell.textContent = String(value);
+          if (column === 1) cell.className = 'name-cell';
+          row.append(cell);
+        });
+        const actionCell = document.createElement('td');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'delete';
+        button.textContent = '删除';
+        button.setAttribute('aria-label', `删除第 ${index + 1} 条记录：${student.name}`);
+        button.addEventListener('click', () => deleteStudent(student.id));
+        actionCell.append(button);
+        row.append(actionCell);
+        body.append(row);
+      });
+    }
+
+    function updateUI() {
+      renderStatistics(calculateStatistics(students));
+      renderStudentList();
+    }
+
+    function addStudent(event) {
+      event.preventDefault();
+      nameInput.removeAttribute('aria-invalid');
+      scoreInput.removeAttribute('aria-invalid');
+      const result = validateStudent(nameInput.value, scoreInput.value);
+      if (result.error) {
+        showMessage(result.error);
+        const invalidInput = result.field === 'name' ? nameInput : scoreInput;
+        invalidInput.setAttribute('aria-invalid', 'true');
+        invalidInput.focus();
+        return;
+      }
+      students.push({ id: nextId++, name: result.name, score: result.score });
+      updateUI();
+      form.reset();
+      showMessage('学生记录已添加。', true);
+      nameInput.focus();
+    }
+
+    function deleteStudent(id) {
+      const index = students.findIndex(student => student.id === id);
+      if (index === -1) return;
+      students.splice(index, 1);
+      updateUI();
+      showMessage('学生记录已删除，统计结果已更新。', true);
+      const buttons = document.querySelectorAll('.delete');
+      if (buttons.length) buttons[Math.min(index, buttons.length - 1)].focus();
+      else nameInput.focus();
+    }
+
+    form.addEventListener('submit', addStudent);
+    updateUI();
+  </script>
+</body>
+</html>
